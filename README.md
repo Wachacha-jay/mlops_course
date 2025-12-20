@@ -44,3 +44,88 @@ Next steps
 
 Contact
 - For questions about this workspace, check the `scripts/` and `expectations/` folders or ask the maintainer.
+
+📜 Why Data Contracts Matter
+
+In production machine learning systems, data is the most common point of failure. Unlike application code, data:
+
+Changes silently
+
+Comes from multiple upstream owners
+
+Evolves without versioned APIs
+
+Can degrade model performance without breaking pipelines
+
+To address this, this project enforces data contracts at ingestion time using Great Expectations.
+
+What Is a Data Contract?
+
+A data contract is an explicit, executable agreement about:
+
+Schema (columns, types, order)
+
+Validity (ranges, allowed values)
+
+Business logic (e.g., sales ≥ 0)
+
+Tolerance to real-world noise (e.g., nullable markdowns)
+
+These contracts are treated as first-class artifacts, versioned alongside code.
+
+How This Project Enforces Data Contracts
+
+During ingestion:
+
+Raw data is staged into the pipeline
+
+A Great Expectations suite validates:
+
+Schema stability
+
+Time format correctness
+
+Non-negativity of sales and economic indicators
+
+Controlled missingness in markdown features
+
+The pipeline fails fast if expectations are violated
+
+Only validated data is persisted and versioned
+
+This prevents:
+
+Silent schema drift
+
+Corrupted training data
+
+Undetected data quality regressions
+
+Downstream model instability
+
+Why This Matters for ML Systems
+
+In real-world ML:
+
+Most model “bugs” are actually data bugs
+
+Retraining on bad data compounds errors
+
+Monitoring only models is insufficient — data must be monitored first
+
+By enforcing contracts at ingestion time, this project:
+
+Shifts data quality checks left
+
+Makes failures observable and debuggable
+
+Creates reproducible, trustworthy datasets
+
+Establishes a foundation for drift detection and governance in later stages
+
+MLOps Principle Demonstrated
+
+Models are disposable. Data integrity is not.
+
+This Week 1 pipeline ensures that every downstream experiment, feature, and model is built on validated, versioned data with known guarantees.
+
