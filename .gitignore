@@ -23,7 +23,10 @@ dist/
 
 # Data files
 data/raw/
+data/features/
 data/source/
+data/validated/
+data/splits/
 data/*.zip
 mlruns/
 

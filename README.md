@@ -1,131 +1,194 @@
-# MLOps Capstone 1 — Walmart Sales Pipeline
+# MLOps Capstone 1: Walmart Sales Forecasting Pipeline
 
-This project contains a small MLOps pipeline for ingesting and validating the Walmart weekly sales dataset.
+## Overview
 
-Contents
-- `scripts/download_data.py` — unzip/copy the Kaggle archive into `data/source/` and stage `data/raw/sales.csv`.
-- `scripts/validate_data.py` — runs Great Expectations validation against `expectations/sales_expectation_suite.json`.
-- `expectations/` — expectation suite used by Great Expectations.
-- `data/` — local data (zip lives at top-level `data/walmart_archive.zip` for this workspace).
+This project implements a production-grade machine learning operations (MLOps) pipeline for Walmart weekly sales forecasting. It demonstrates end-to-end best practices including data ingestion, validation, feature engineering, model training, and experiment tracking.
 
-Quickstart
-1. From the workspace root, change to the project folder:
+**Key Features:**
+- Data contract enforcement via Great Expectations
+- Automated data validation and quality checks
+- Feature engineering with lag and rolling statistics
+- Baseline model training with scikit-learn
+- MLflow experiment tracking and model registry
+- Modular, DAG-based architecture (Airflow-ready)
 
-```bash
-cd mlops_capstone1_project
+## Project Structure
+
+```
+├── airflow/                          # Airflow DAGs for orchestration
+│   └── dags/
+│       ├── ingest_sales_dag.py       # Data ingestion and validation
+│       ├── feature_pipeline_dag.py   # Feature engineering
+│       └── training_pipeline_dag.py  # Model training and evaluation
+├── scripts/                          # Core pipeline scripts
+│   ├── download_data.py              # Data source setup
+│   ├── validate_data.py              # Data contract validation (Great Expectations)
+│   ├── feature_engineering.py        # Feature generation (lag, rolling stats)
+│   ├── split_data.py                 # Train/test split
+│   ├── train_baseline.py             # Model training with MLflow tracking
+│   ├── evaluate_model.py             # Model evaluation on test set
+│   ├── register_model.py             # Model registry operations
+│   ├── log_data_metadata.py          # Data lineage tracking
+│   ├── persist_data.py               # Data serialization
+│   └── validate_feature.py           # Feature validation suite
+├── expectations/                     # Great Expectations suites
+│   ├── sales_expectation_suite.json  # Raw data contracts
+│   └── feature_expectation_suite.json # Feature data contracts
+├── data/                             # Data pipeline artifacts
+│   ├── raw/                          # Raw ingested data
+│   ├── source/                       # Source CSV files
+│   ├── validated/                    # Validated data after QA
+│   └── features/                     # Engineered features
+├── mlruns/                           # MLflow tracking artifacts
+└── pyproject.toml                    # Project dependencies and config
 ```
 
-2. Ensure dependencies are installed in your Python environment (project uses `great_expectations`, `pandas`, etc.). Activate your venv if needed.
+## Quickstart
 
-3. Place the dataset zip at the top-level `data/walmart_archive.zip` (already present in this workspace) and run the download script:
+### Prerequisites
+- Python 3.11+
+- Dependencies: `pandas`, `scikit-learn`, `great-expectations`, `mlflow`
 
+### Setup
+
+1. **Navigate to project directory:**
+   ```bash
+   cd mlops_capstone1_project
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   # or with conda
+   conda env create -f environment.yml
+   ```
+
+3. **Prepare data source:**
+   ```bash
+   python3 scripts/download_data.py
+   ```
+   This extracts the Walmart sales dataset to `data/source/` and stages it as `data/raw/sales.csv`.
+
+### Pipeline Execution
+
+**Run the complete pipeline:**
 ```bash
-python3 scripts/download_data.py
-```
-
-This will extract CSV(s) to `data/source/` and copy the chosen CSV to `data/raw/sales.csv`.
-
-4. Validate the raw CSV using Great Expectations:
-
-```bash
+# Data validation (enforces contracts)
 python3 scripts/validate_data.py
+
+# Feature engineering
+python3 scripts/feature_engineering.py
+
+# Train/test split
+python3 scripts/split_data.py
+
+# Model training with experiment tracking
+python3 scripts/train_baseline.py
+
+# Model evaluation
+python3 scripts/evaluate_model.py
 ```
 
-If validation passes you will see a success log. If it fails, the script will raise and print the failing expectations.
+**Or use Airflow for orchestration:**
+```bash
+airflow dags list
+airflow dags trigger ingest_sales_dag
+airflow dags trigger feature_pipeline_dag
+airflow dags trigger training_pipeline_dag
+```
 
-Notes
-- The expectation suite was adjusted to match the current CSV column names (`Store, Dept, Date, Weekly_Sales, IsHoliday`).
-- `.gitignore` was added to ignore local venvs, data, and generated files.
-- If you use DVC, ensure large data files are tracked with DVC and remotes configured.
+## Data Contracts
 
-Next steps
-- Commit and push to a remote repository.
-- Configure CI to run `scripts/validate_data.py` and/or the Airflow DAG.
+This project enforces explicit **data contracts** at ingestion and feature generation stages using Great Expectations.
 
-Contact
-- For questions about this workspace, check the `scripts/` and `expectations/` folders or ask the maintainer.
+### Raw Data Contract (`expectations/sales_expectation_suite.json`)
 
-📜 Why Data Contracts Matter
+Validates:
+- **Schema stability:** Expected columns (`Store`, `Dept`, `Date`, `Weekly_Sales`, `IsHoliday`)
+- **Data types:** Proper type enforcement (numeric, datetime)
+- **Business constraints:** Non-negative sales values
+- **Completeness:** Acceptable missingness thresholds
 
-In production machine learning systems, data is the most common point of failure. Unlike application code, data:
+### Feature Contract (`expectations/feature_expectation_suite.json`)
 
-Changes silently
+Validates:
+- **Feature stability:** All engineered features present
+- **Statistical bounds:** Lag and rolling features within expected ranges
+- **No data leakage:** Forward-looking features properly lagged
 
-Comes from multiple upstream owners
+### Why Data Contracts Matter
 
-Evolves without versioned APIs
+In production ML systems, data is the primary source of failures:
+- **Silent drift:** Schema changes without detection
+- **Corrupted training:** Bad upstream data → bad models
+- **Unmonitored degradation:** Model performance drops due to data quality, not model issues
 
-Can degrade model performance without breaking pipelines
+By enforcing contracts at ingestion, this pipeline:
+- ✅ Fails fast on invalid data
+- ✅ Prevents downstream model contamination
+- ✅ Creates reproducible, auditable datasets
+- ✅ Enables early drift detection
 
-To address this, this project enforces data contracts at ingestion time using Great Expectations.
+**Core MLOps Principle:** *Models are disposable. Data integrity is not.*
 
-What Is a Data Contract?
+## Model Tracking
 
-A data contract is an explicit, executable agreement about:
+All experiments are tracked in MLflow under the `walmart_week3_baselines` experiment:
 
-Schema (columns, types, order)
+```bash
+# View experiments
+mlflow ui --backend-store-uri file:./mlruns
 
-Validity (ranges, allowed values)
+# Query specific run
+mlflow runs list --experiment-name walmart_week3_baselines
+```
 
-Business logic (e.g., sales ≥ 0)
+**Tracked artifacts:**
+- Model serialization (sklearn pickle)
+- Hyperparameters
+- Train/test metrics (MAE, RMSE)
+- Feature importance and validation results
 
-Tolerance to real-world noise (e.g., nullable markdowns)
+## Configuration
 
-These contracts are treated as first-class artifacts, versioned alongside code.
+Key paths and settings can be configured in individual scripts:
 
-How This Project Enforces Data Contracts
+| Script | Key Variables |
+|--------|---------------|
+| `validate_data.py` | `RAW_DATA_PATH`, `EXPECTATION_SUITE_NAME` |
+| `feature_engineering.py` | `INPUT_PATH`, `OUTPUT_PATH` |
+| `train_baseline.py` | Model type, hyperparameters, experiment name |
 
-During ingestion:
+## Development & Contributing
 
-Raw data is staged into the pipeline
+- **Code style:** Follow PEP 8 conventions
+- **Testing:** Add unit tests for pipeline scripts in `tests/`
+- **Documentation:** Update `expectations/` JSONs when schema changes
+- **DVC (optional):** Track large data files with `dvc add` and push to remote storage
 
-A Great Expectations suite validates:
+## Troubleshooting
 
-Schema stability
+| Error | Solution |
+|-------|----------|
+| `FileNotFoundError: Validated data not found` | Run `validate_data.py` first |
+| `Run 'latest' not found` | Ensure `train_baseline.py` has been executed |
+| `Missing column 'date'` | Check CSV column names match expectations |
 
-Time format correctness
+## Next Steps
 
-Non-negativity of sales and economic indicators
+- [ ] Deploy pipeline to production orchestrator (Airflow, Prefect, Dagster)
+- [ ] Add data drift monitoring with Great Expectations
+- [ ] Implement model performance monitoring
+- [ ] Set up automated retraining triggers
+- [ ] Configure DVC remotes for data versioning
+- [ ] Add integration tests and CI/CD
 
-Controlled missingness in markdown features
+## References
 
-The pipeline fails fast if expectations are violated
+- [Great Expectations Documentation](https://docs.greatexpectations.io/)
+- [MLflow Guide](https://mlflow.org/docs/latest/index.html)
+- [Walmart Sales Dataset](https://www.kaggle.com/datasets/walmart/walmart-recruiting-store-sales-forecasting)
 
-Only validated data is persisted and versioned
+## License
 
-This prevents:
-
-Silent schema drift
-
-Corrupted training data
-
-Undetected data quality regressions
-
-Downstream model instability
-
-Why This Matters for ML Systems
-
-In real-world ML:
-
-Most model “bugs” are actually data bugs
-
-Retraining on bad data compounds errors
-
-Monitoring only models is insufficient — data must be monitored first
-
-By enforcing contracts at ingestion time, this project:
-
-Shifts data quality checks left
-
-Makes failures observable and debuggable
-
-Creates reproducible, trustworthy datasets
-
-Establishes a foundation for drift detection and governance in later stages
-
-MLOps Principle Demonstrated
-
-Models are disposable. Data integrity is not.
-
-This Week 1 pipeline ensures that every downstream experiment, feature, and model is built on validated, versioned data with known guarantees.
-
+This project is part of the MLOps Capstone course.

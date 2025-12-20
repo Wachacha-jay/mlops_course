@@ -3,6 +3,7 @@
 from pathlib import Path
 import logging
 import json
+import shutil
 import great_expectations as ge
 from great_expectations.core.batch import RuntimeBatchRequest
 from great_expectations.core.expectation_suite import ExpectationSuite
@@ -89,9 +90,16 @@ def validate_data(**context):
 
     logger.info("Data validation passed successfully")
 
+    # Save validated data (copy the same source CSV we validated)
+    validated_output_path = Path("data/validated/sales_validated.csv")
+    validated_output_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source_dir / filename, validated_output_path)
+    logger.info("Validated data written to %s", validated_output_path)
+
     return {
         "validated_rows": results.statistics["evaluated_expectations"],
         "success": True,
+        "output_path": str(validated_output_path),
     }
 
 

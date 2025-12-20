@@ -13,7 +13,17 @@ def evaluate_model(**context):
     target = "weekly_sales"
     features = [c for c in test.columns if c not in ["date", target]]
 
-    model_uri = "runs:/latest/model"
+    # Get the latest run from the experiment
+    experiment = mlflow.get_experiment_by_name("walmart_week3_baselines")
+    if not experiment:
+        raise RuntimeError("Experiment 'walmart_week3_baselines' not found")
+    
+    runs = mlflow.search_runs(experiment_ids=[experiment.experiment_id], order_by=["start_time DESC"], max_results=1)
+    if runs.empty:
+        raise RuntimeError("No runs found in experiment")
+    
+    latest_run_id = runs.iloc[0]["run_id"]
+    model_uri = f"runs:/{latest_run_id}/model"
     model = mlflow.sklearn.load_model(model_uri)
 
     X_test, y_test = test[features], test[target]
